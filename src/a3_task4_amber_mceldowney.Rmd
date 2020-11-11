@@ -1,0 +1,99 @@
+---
+title: "a3_task4_amber_mceldowney"
+author: "Amber McEldowney"
+date: "11/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+library(here)
+library(lubridate)
+library(kableExtra)
+```
+
+## Read in Urchins data
+Here I will read in the urchins data
+```{r message=FALSE, warning=FALSE}
+urchins <- read_csv(here("data","urchins.csv"))
+urchins_clean <- clean_names(urchins)
+```
+## Data Wrangling
+Here I will make a subset for purple urchin observations in Naples in January 2010
+```{r}
+purple_urchins <- urchins_clean %>% 
+  filter(common_name == "Purple Urchin") %>% 
+  mutate(date = myd(date),
+         year = year(date),
+         month = month(date),
+         site_full = case_when(
+  site %in% c("NAPL") ~ "Naples Reef",
+  site %in% c("AQUE") ~ "Arroyo Quemado Reef",
+  site %in% c("CARP") ~ "Carpinteria Reef",
+  site %in% c("IVEE") ~ "Isla Vista Reef",
+  site %in% c("MOHK") ~ "Mohawk Reef"))
+purple_urchins_2010_naples <- purple_urchins %>% 
+filter(year == "2010", site_full == "Naples Reef", month == "1", common_name == "Purple Urchin")
+```
+
+## Exploratory Graphmaking
+Here I will create exploratory graphs to examine the size distribution of the treatments to assess normality and describe my takeaways
+```{r}
+
+ggplot(purple_urchins_2010_naples, aes(sample = size)) +
+  geom_qq() +
+  facet_wrap(~treatment)
+  
+```
+
+
+```{r message=FALSE, warning=FALSE}
+ggplot(purple_urchins_2010_naples, aes(x=size)) +
+  geom_histogram(bins=15) +
+  facet_wrap(~treatment) +
+  labs (x= "Urchin size (cm)", y = "Count of Urchins")
+```
+
+## Summary
+The control sample of purple urchins in Naples Reef in January 2010 appears to be more normally distributed than the annually treated sample, which is skewed to the left.  On average, the urchin size from the kelp-treated population are smaller than the control urchin sizes.
+
+## Compare Control and Annual Means
+Here I will write code comparing the mean size of purple urchins in control and annual kelp removal sections of Naples Reef in January 2010
+
+```{r message=FALSE, warning=FALSE}
+purple_urchins_control_annual_means <- purple_urchins_2010_naples %>% 
+  filter(year == "2010") %>% 
+  group_by(treatment) %>% 
+ summarise(mean = mean(size),
+            median = median(size),
+            sd = sd(size),
+            n= n())
+  
+kable(purple_urchins_control_annual_means) %>% 
+kable_minimal()
+```
+
+### Split df into groups
+Here I will split the urchin data into control and annual sets
+
+```{r}
+
+control_sample <- purple_urchins_2010_naples %>% 
+  filter(treatment == "CONTROL") %>% 
+  pull(size)
+
+annual_sample <- purple_urchins_2010_naples %>% 
+  filter(treatment == "ANNUAL") %>% 
+  pull(size)
+```
+
+### Run a two-sample t-test
+Here I will compare the means between the control and annual samples
+
+```{r}
+t.test(control_sample, annual_sample)
+```
+## Summary
+The observed mean size of purple sea urchins from the control group recorded in Naples in January 2010 is 3.48cm, and the mean size of purple sea urchins from the annual (kelp-treated) group recorded in Naples in January 2010 is 3.25cm. The true mean means that for the control population, if the standard deviation is .56, there is a 95% chance that the true mean falls between 2.92 and 4.04. For the annual population, there is a 95% chance the true mean falls between 2.42 and 4.08.  The p-value is .07 which means there is a 7% chance that the 2 samples came from populations with the same means.  
